@@ -1,4 +1,5 @@
 // 1st question 
+val noOfLines = sc.getConf.get("spark.driver.args")
 
   def parse(line: String): (String, (Long, List[String])) = {
     val fields = line.split("\t")
@@ -13,13 +14,9 @@
   } 
     val startTime = System.currentTimeMillis()
     val lines = sc.textFile("hdfs://localhost:9000/user/vu2yb/FriendsInput/soc-LiveJournal1Adj.txt") // reading file
-    val friends = sc.parallelize(lines.take(44997)).map(parse).filter(line => line._1 != "-1") // comparing the first attribute
+    val friends = sc.parallelize(lines.take(noOfLines.toInt)).map(parse).filter(line => line._1 != "-1") // comparing the first attribute
     
-    
-    // Emit (1,2),1,list of friends) (1,3),1,list of friends)  
     val frndpair = friends.flatMap(x => x._2._2.map(y => if (x._1.toLong < y.toLong) { ((x._1, y), x._2) } else { ((y, x._1), x._2) }))
-    
-    // reduce  RDD[((String, String), (Long, List[String]))] (1,2),(2,list)
     val mutualFriends = frndpair.reduceByKey((x, y) => ((x._1 + y._1), x._2.intersect(y._2))).filter(v => v._2._1 != 1)
 
     val finalMutualFriends = mutualFriends.map(r => (r._1, r._2._2)).filter(l=>l._2!=List())
@@ -40,7 +37,7 @@
 	  case ((t1, t2), t3) =>
 	    t1 + "\t" + t2 + "\t" + t3.mkString(",")
 	}
-	sortedMutualFriends.saveAsTextFile("hdfs://localhost:9000/user/vu2yb/Test/output")
+	sortedMutualFriends.saveAsTextFile("hdfs://localhost:9000/user/vu2yb/Spark"+noOfLines+"/output")
 
 
  
@@ -49,7 +46,7 @@ val startTime1 = System.currentTimeMillis()
 val friendsCounts=sortedMutualFriends.map(x=>x.split("\t")).filter(x => (x.size == 3)).map(parts => s"${parts(0)}\t${parts(1)}\t${parts(2).split(",").length}")
 val maxfriendsCount = friendsCounts.map(_.split("\t")(2).toInt).reduce(Math.max)
 val high_mutual_frnds = friendsCounts.map(x => x.split('\t')).filter(line => line(2).toInt == maxfriendsCount).map(parts => s"${parts(0)}\t${parts(1)}\t${parts(2)}")
-high_mutual_frnds.saveAsTextFile("hdfs://localhost:9000/user/vu2yb/Test/p2/")
+high_mutual_frnds.saveAsTextFile("hdfs://localhost:9000/user/vu2yb/Spark"+noOfLines+"/p2/")
 
 // 2nd question part 2
 val p3=sortedMutualFriends.map(x=>x.split("\t")).filter(x => (x.size == 3)).map{parts => 
@@ -57,7 +54,7 @@ val p3=sortedMutualFriends.map(x=>x.split("\t")).filter(x => (x.size == 3)).map{
 	s"${parts(0)}\t${parts(1)}\t${Friends}"
 	}
 val p4=p3.map(x=>x.split("\t")).filter(x => (x.size == 3)).map(parts=>s"${parts(0)}\t${parts(1)}\t${parts(2)}")
-p4.saveAsTextFile("hdfs://localhost:9000/user/vu2yb/Test/p21/")
+p4.saveAsTextFile("hdfs://localhost:9000/user/vu2yb/Spark"+noOfLines+"/p21/")
 val endTime1 = System.currentTimeMillis()
 val runtime1 = endTime1 - startTime1
 
@@ -68,12 +65,13 @@ val total_Friends = friendsCounts.map(_.split("\t")(2).toInt).reduce(_ + _)
 val count =friendsCounts.count()
 val avg = total_Friends.toDouble / count.toDouble
 val ans="Average: " + avg.toString
+println(ans)
 val answer=sc.parallelize(Seq(ans))
-answer.saveAsTextFile("hdfs://localhost:9000/user/vu2yb/Test/p3/")
+answer.saveAsTextFile("hdfs://localhost:9000/user/vu2yb/Spark"+noOfLines+"/p3/")
 
 // 3rd question part 2
 val moreThanAvg = friendsCounts.map(x => x.split('\t')).filter(line => line(2).toInt > avg.toInt).map(parts => s"${parts(0)}\t${parts(1)}\t${parts(2)}")
-moreThanAvg.saveAsTextFile("hdfs://localhost:9000/user/vu2yb/Test/p31/")
+moreThanAvg.saveAsTextFile("hdfs://localhost:9000/user/vu2yb/Spark"+noOfLines+"/p31/")
 val endTime2 = System.currentTimeMillis()
 val runtime2 = endTime2 - startTime2
 println(runtime)
